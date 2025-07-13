@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "383593364864",
+    "project_id": "clarimind-63f63",
+    "storage_bucket": "clarimind-63f63.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:383593364864:android:8342e789c945883ace5565",
+        "android_client_info": {
+          "package_name": "com.example.clarimind"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "383593364864-he6roeh1vla7t2jk14mplrlsrqf8kr7r.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.clarimind",
+            "certificate_hash": "351f65a4e2f6a7b1ba2bc4b913f7cce75b3135d7"
+          }
+        },
+        {
+          "client_id": "383593364864-3e7l4ivtf8sm785oc0v0rdmvtnie8gqs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-q1x2MovSCi6kEBGwjgXT0jwEYOpRMac"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+                      "other_platform_oauth_client": [
+              {
+                "client_id": "383593364864-3e7l4ivtf8sm785oc0v0rdmvtnie8gqs.apps.googleusercontent.com",
+                "client_type": 3
+              }
+            ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
