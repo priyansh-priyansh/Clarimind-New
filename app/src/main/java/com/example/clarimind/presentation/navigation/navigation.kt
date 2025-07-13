@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.clarimind.presentation.model.PHIScore
 import com.example.clarimind.presentation.model.User
+import com.example.clarimind.presentation.screens.ChatbotScreen
 import com.example.clarimind.presentation.screens.DashBoardScreen
 import com.example.clarimind.presentation.screens.EmotionCameraScreen
 import com.example.clarimind.presentation.screens.QuestionnaireScreen
@@ -26,7 +27,7 @@ fun NavGraph() {
 
      NavHost(
           navController = navController,
-          startDestination = DashBoardScreen("happy", 7.3, 4.4, 3.4)
+          startDestination = EmotionCameraScreen
      ) {
           composable<EmotionCameraScreen> {
                EmotionCameraScreen(
@@ -89,9 +90,31 @@ fun NavGraph() {
                          }
                     },
                     onChatbotClick = {
-                         // Navigate to chatbot screen
-                         // You can add the chatbot route here when implemented
-                         // navController.navigate(ChatbotScreen(mood = args.mood, phiScore = phiScore))
+                         navController.navigate(
+                              ChatbotScreen(
+                                   mood = args.mood,
+                                   rememberedWellBeing = args.rememberedWellBeing,
+                                   experiencedWellBeing = args.experiencedWellBeing,
+                                   combinedPHI = args.combinedPHI
+                              )
+                         )
+                    }
+               )
+          }
+
+          composable<ChatbotScreen> {
+               val args = it.toRoute<ChatbotScreen>()
+               val phiScore = PHIScore(
+                    rememberedWellBeing = args.rememberedWellBeing,
+                    experiencedWellBeing = args.experiencedWellBeing,
+                    combinedPHI = args.combinedPHI
+               )
+               
+               ChatbotScreen(
+                    mood = args.mood,
+                    phiScore = phiScore,
+                    onBackPressed = {
+                         navController.popBackStack()
                     }
                )
           }

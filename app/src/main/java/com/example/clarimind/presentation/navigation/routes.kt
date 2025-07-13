@@ -16,3 +16,11 @@ data class DashBoardScreen(
     val experiencedWellBeing: Double,
     val combinedPHI: Double
 )
+
+@Serializable
+data class ChatbotScreen(
+    val mood: String,
+    val rememberedWellBeing: Double,
+    val experiencedWellBeing: Double,
+    val combinedPHI: Double
+)
