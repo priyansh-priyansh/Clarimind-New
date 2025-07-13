@@ -14,17 +14,16 @@ class WelcomeActivity : AppCompatActivity() {
         val completedWelcome = prefs.getBoolean("completed_welcome", false)
         if (completedWelcome) {
             // User already completed welcome, go straight to camera
-            startActivity(Intent(this, EmotionCameraActivity::class.java))
+            startActivity(Intent(this, MainActivity::class.java))
             finish()
             return
         }
 
         setContentView(R.layout.activity_welcome)
-
         val btnGetStarted = findViewById<Button>(R.id.btnGetStarted)
         btnGetStarted.setOnClickListener {
             prefs.edit().putBoolean("completed_welcome", true).apply()
-            val intent = Intent(this, EmotionCameraActivity::class.java)
+            val intent = Intent(this, MainActivity::class.java)
             startActivity(intent)
             finish()
         }

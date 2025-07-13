@@ -26,6 +26,7 @@ import com.example.clarimind.presentation.viewmodels.QuestionnaireViewModel
 @Composable
 fun QuestionnaireScreen(
     onResultsCalculated: (PHIScore) -> Unit = {},
+    mood : String,
     viewModel: QuestionnaireViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()

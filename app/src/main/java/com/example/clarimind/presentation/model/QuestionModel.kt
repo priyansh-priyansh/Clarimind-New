@@ -1,5 +1,7 @@
 package com.example.clarimind.presentation.model
 
+import kotlinx.serialization.Serializable
+
 
 // Data Classes
 data class SectionAQuestion(

@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.example.clarimind" />
+                  <option name="mobileSdkAppId" value="1:383593364864:android:8342e789c945883ace5565" />
+                  <option name="projectId" value="clarimind-63f63" />
+                  <option name="projectNumber" value="383593364864" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
