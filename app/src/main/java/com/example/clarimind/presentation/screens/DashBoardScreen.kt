@@ -40,7 +40,8 @@ fun DashBoardScreen(
     user: User, // Add user parameter
     viewModel: DashboardViewModel = viewModel(),
     onRetakeAssessment: () -> Unit,
-    onChatbotClick: () -> Unit
+    onChatbotClick: () -> Unit,
+    onViewScreenTime: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -62,6 +63,7 @@ fun DashBoardScreen(
             mood = mood,
             onRetakeAssessment = onRetakeAssessment,
             onChatbotClick = onChatbotClick,
+            onViewScreenTime = onViewScreenTime,
             paddingValues = paddingValues
         )
     }
@@ -73,6 +75,7 @@ private fun DashboardContent(
     mood: String,
     onRetakeAssessment: () -> Unit,
     onChatbotClick: () -> Unit,
+    onViewScreenTime: () -> Unit,
     paddingValues: PaddingValues
 ) {
     LazyColumn(
@@ -105,10 +108,11 @@ private fun DashboardContent(
             )
         }
 
-        // Action Buttons - Only Retake Assessment button
+        // Action Buttons Section
         item {
             ActionButtonsSection(
-                onRetakeAssessment = onRetakeAssessment
+                onRetakeAssessment = onRetakeAssessment,
+                onViewScreenTime = onViewScreenTime
             )
         }
     }
@@ -378,28 +382,55 @@ private fun SuggestionItem(suggestion: String) {
 
 @Composable
 private fun ActionButtonsSection(
-    onRetakeAssessment: () -> Unit
+    onRetakeAssessment: () -> Unit,
+    onViewScreenTime: () -> Unit
 ) {
-    // Only Retake Assessment Button
-    Button(
-        onClick = onRetakeAssessment,
-        modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF2196F3)
-        ),
-        shape = RoundedCornerShape(12.dp)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.Refresh,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "Retake PHI Assessment",
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
-        )
+        // Retake Assessment Button
+        Button(
+            onClick = onRetakeAssessment,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF2196F3)
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Retake PHI Assessment",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        // View Screen Time Button
+        Button(
+            onClick = onViewScreenTime,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF4CAF50)
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Schedule,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "View Screen Time",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 

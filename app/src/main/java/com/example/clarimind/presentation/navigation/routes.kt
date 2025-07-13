@@ -24,3 +24,6 @@ data class ChatbotScreen(
     val experiencedWellBeing: Double,
     val combinedPHI: Double
 )
+
+@Serializable
+data object ScreenTimeScreen

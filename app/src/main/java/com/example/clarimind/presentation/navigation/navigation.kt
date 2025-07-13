@@ -15,6 +15,7 @@ import com.example.clarimind.presentation.screens.ChatbotScreen
 import com.example.clarimind.presentation.screens.DashBoardScreen
 import com.example.clarimind.presentation.screens.EmotionCameraScreen
 import com.example.clarimind.presentation.screens.QuestionnaireScreen
+import com.example.clarimind.presentation.screens.ScreenTimeScreen
 import com.example.clarimind.presentation.viewmodels.DashboardViewModel
 import com.google.firebase.auth.FirebaseAuth
 
@@ -98,6 +99,9 @@ fun NavGraph() {
                                    combinedPHI = args.combinedPHI
                               )
                          )
+                    },
+                    onViewScreenTime = {
+                         navController.navigate(ScreenTimeScreen)
                     }
                )
           }
@@ -113,6 +117,14 @@ fun NavGraph() {
                ChatbotScreen(
                     mood = args.mood,
                     phiScore = phiScore,
+                    onBackPressed = {
+                         navController.popBackStack()
+                    }
+               )
+          }
+
+          composable<ScreenTimeScreen> {
+               ScreenTimeScreen(
                     onBackPressed = {
                          navController.popBackStack()
                     }
