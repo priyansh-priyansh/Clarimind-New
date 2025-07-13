@@ -67,6 +67,8 @@ dependencies {
     // Kotlinx Serialization core
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+    // Gemini AI
+    implementation("com.google.ai.client.generativeai:generativeai:0.1.1")
 
     // Navigation for Jetpack Compose
     implementation(libs.androidx.navigation.compose)

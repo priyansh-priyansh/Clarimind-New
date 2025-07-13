@@ -14,9 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.clarimind.presentation.viewmodels.ScreenTimeViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -38,31 +41,36 @@ data class ScreenTimeData(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScreenTimeScreen(
-    onBackPressed: () -> Unit
+    onBackPressed: () -> Unit,
+    viewModel: ScreenTimeViewModel = viewModel()
 ) {
-    // Mock data - in a real app, this would come from UsageStatsManager
-    val screenTimeData = remember {
-        ScreenTimeData(
-            totalScreenTime = 480, // 8 hours
-            dailyAverage = 420, // 7 hours
-            weeklyTotal = 2940, // 49 hours
-            mostUsedApps = listOf(
-                AppUsage("ClariMind", "com.example.clarimind", 120),
-                AppUsage("Social Media", "com.social.media", 180),
-                AppUsage("Messaging", "com.messaging.app", 90),
-                AppUsage("Browser", "com.browser.app", 60),
-                AppUsage("Games", "com.games.app", 30)
-            ),
-            usageByDay = mapOf(
-                "Monday" to 420L,
-                "Tuesday" to 380L,
-                "Wednesday" to 450L,
-                "Thursday" to 400L,
-                "Friday" to 480L,
-                "Saturday" to 520L,
-                "Sunday" to 290L
-            )
-        )
+    val context = LocalContext.current
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // Debug logging
+    LaunchedEffect(uiState.screenTimeData) {
+        uiState.screenTimeData?.let { data ->
+            android.util.Log.d("ScreenTimeUI", "Received data - Total: ${data.totalScreenTime}min, Apps: ${data.mostUsedApps.size}")
+            android.util.Log.d("ScreenTimeUI", "Total screen time: ${data.totalScreenTime} minutes")
+            android.util.Log.d("ScreenTimeUI", "Hours: ${data.totalScreenTime / 60}, Minutes: ${data.totalScreenTime % 60}")
+            data.mostUsedApps.forEach { app ->
+                android.util.Log.d("ScreenTimeUI", "App: ${app.appName} = ${app.usageTime}min")
+            }
+        }
+    }
+    
+    // Check permission and load data when screen is first composed
+    LaunchedEffect(Unit) {
+        viewModel.checkPermission(context)
+    }
+    
+    // Add a manual refresh button to the permission card
+    var showRefreshButton by remember { mutableStateOf(false) }
+    
+    // Show refresh button after a delay
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(2000) // 2 seconds delay
+        showRefreshButton = true
     }
 
     Scaffold(
@@ -101,37 +109,79 @@ fun ScreenTimeScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(Color(0xFFF8F9FA)),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Today's Summary
-            item {
-                TodaySummaryCard(screenTimeData)
+        when {
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF6C63FF),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Loading screen time data...",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color(0xFF666666)
+                        )
+                    }
+                }
             }
-
-            // Weekly Overview
-            item {
-                WeeklyOverviewCard(screenTimeData)
+            
+            !uiState.hasPermission -> {
+                PermissionRequestCard(
+                    onRequestPermission = { viewModel.requestPermission(context) },
+                    onRefresh = { viewModel.refreshPermission(context) },
+                    showRefreshButton = showRefreshButton
+                )
             }
+            
+            uiState.screenTimeData != null -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .background(Color(0xFFF8F9FA)),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Today's Summary
+                    item {
+                        TodaySummaryCard(uiState.screenTimeData!!)
+                    }
 
-            // Most Used Apps
-            item {
-                MostUsedAppsCard(screenTimeData.mostUsedApps)
+                    // Weekly Overview
+                    item {
+                        WeeklyOverviewCard(uiState.screenTimeData!!)
+                    }
+
+                    // Most Used Apps
+                    item {
+                        MostUsedAppsCard(uiState.screenTimeData!!.mostUsedApps)
+                    }
+
+                    // Daily Breakdown
+                    item {
+                        DailyBreakdownCard(uiState.screenTimeData!!.usageByDay)
+                    }
+
+                    // Tips Section
+                    item {
+                        ScreenTimeTipsCard()
+                    }
+                }
             }
-
-            // Daily Breakdown
-            item {
-                DailyBreakdownCard(screenTimeData.usageByDay)
-            }
-
-            // Tips Section
-            item {
-                ScreenTimeTipsCard()
+            
+            uiState.error != null -> {
+                ErrorCard(
+                    error = uiState.error!!,
+                    onRetry = { viewModel.loadScreenTimeData(context) },
+                    onClearError = { viewModel.clearError() }
+                )
             }
         }
     }
@@ -503,6 +553,174 @@ private fun ScreenTimeTipsCard() {
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF333333)
                     )
+                }
+            }
+        }
+    }
+} 
+
+@Composable
+private fun PermissionRequestCard(
+    onRequestPermission: () -> Unit,
+    onRefresh: () -> Unit,
+    showRefreshButton: Boolean
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = Color(0xFF6C63FF),
+                modifier = Modifier.size(64.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = "Permission Required",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1A1A1A)
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = "To view your screen time data, ClariMind needs access to usage statistics. This helps provide insights into your digital wellness patterns.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF666666),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Button(
+                onClick = onRequestPermission,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF6C63FF)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Grant Permission",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            
+            if (showRefreshButton) {
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                OutlinedButton(
+                    onClick = onRefresh,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFF6C63FF)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "I've Granted Permission - Refresh",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ErrorCard(
+    error: String,
+    onRetry: () -> Unit,
+    onClearError: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Error,
+                contentDescription = null,
+                tint = Color(0xFFE53935),
+                modifier = Modifier.size(64.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = "Error Loading Data",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1A1A1A)
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF666666),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onClearError,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFF666666)
+                    )
+                ) {
+                    Text("Dismiss")
+                }
+                
+                Button(
+                    onClick = onRetry,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF6C63FF)
+                    )
+                ) {
+                    Text("Retry")
                 }
             }
         }
