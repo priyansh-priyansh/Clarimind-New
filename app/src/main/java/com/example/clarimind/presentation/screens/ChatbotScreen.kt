@@ -20,6 +20,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -311,6 +312,7 @@ fun ChatInputSection(
                         color = Color(0xFF999999)
                     )
                 },
+                textStyle = TextStyle(color = Color.Black),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF6C63FF),
                     unfocusedBorderColor = Color(0xFFE0E0E0)
