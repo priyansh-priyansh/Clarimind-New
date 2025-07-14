@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 // Replace the sealed class with individual @Serializable classes
 @Serializable
-data object EmotionCameraScreen
+object EmotionCameraScreen
 
 @Serializable
 data class QuestionsScreen(val mood: String)
@@ -26,4 +26,4 @@ data class ChatbotScreen(
 )
 
 @Serializable
-data object ScreenTimeScreen
+object ScreenTimeScreen

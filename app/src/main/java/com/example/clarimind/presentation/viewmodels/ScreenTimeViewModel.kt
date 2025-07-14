@@ -43,12 +43,12 @@ class ScreenTimeViewModel : ViewModel() {
             Process.myUid(),
             context.packageName
         )
-        
+
         val hasPermission = mode == AppOpsManager.MODE_ALLOWED
         android.util.Log.d("ScreenTime", "Permission check - Mode: $mode, HasPermission: $hasPermission")
-        
+
         _uiState.value = _uiState.value.copy(hasPermission = hasPermission)
-        
+
         if (hasPermission) {
             android.util.Log.d("ScreenTime", "Permission granted, loading data...")
             loadScreenTimeData(context)
@@ -56,7 +56,7 @@ class ScreenTimeViewModel : ViewModel() {
             android.util.Log.d("ScreenTime", "Permission denied, cannot load data")
         }
     }
-    
+
     fun refreshPermission(context: Context) {
         checkPermission(context)
     }
@@ -69,179 +69,43 @@ class ScreenTimeViewModel : ViewModel() {
 
     fun loadScreenTimeData(context: Context) {
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-        
+
         viewModelScope.launch {
             try {
                 val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-                android.util.Log.d("ScreenTime", "UsageStatsManager obtained successfully")
-                
-                // Use UsageEvents approach like the working app
+
+                // Get current time boundaries - FIXED: Use proper time boundaries
                 val endTime = System.currentTimeMillis()
-                val startTime = endTime - (24 * 60 * 60 * 1000) // Last 24 hours
-                
-                // Get usage events for real-time tracking
-                val usageEvents = usageStatsManager.queryEvents(startTime, endTime)
-                val event = android.app.usage.UsageEvents.Event()
-                
-                val appUsageMap = mutableMapOf<String, Long>()
-                var lastForegroundApp: String? = null
-                var lastForegroundTime: Long = 0
-                var currentApp: String? = null
-                var currentAppStartTime: Long = 0
-                
-                android.util.Log.d("ScreenTime", "Querying usage events from $startTime to $endTime")
-                
-                while (usageEvents.hasNextEvent()) {
-                    usageEvents.getNextEvent(event)
-                    val packageName = event.packageName
-                    val timeStamp = event.timeStamp
-                    val eventType = event.eventType
-                    
-                    android.util.Log.d("ScreenTime", "Event: $packageName, Type: $eventType, Time: $timeStamp")
-                    
-                    when (eventType) {
-                        android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
-                            // If there was a previous app running, calculate its usage
-                            if (currentApp != null && currentAppStartTime > 0) {
-                                val duration = timeStamp - currentAppStartTime
-                                if (duration > 0) {
-                                    appUsageMap[currentApp!!] = (appUsageMap[currentApp!!] ?: 0L) + duration
-                                    android.util.Log.d("ScreenTime", "App usage: $currentApp = ${duration / (1000 * 60)}min")
-                                }
-                            }
-                            
-                            // Start tracking new app
-                            currentApp = packageName
-                            currentAppStartTime = timeStamp
-                            lastForegroundApp = packageName
-                            lastForegroundTime = timeStamp
-                        }
-                        
-                        android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                            // Calculate usage for the app that went to background
-                            if (currentApp == packageName && currentAppStartTime > 0) {
-                                val duration = timeStamp - currentAppStartTime
-                                if (duration > 0) {
-                                    appUsageMap[packageName] = (appUsageMap[packageName] ?: 0L) + duration
-                                    android.util.Log.d("ScreenTime", "App usage: $packageName = ${duration / (1000 * 60)}min")
-                                }
-                            }
-                            
-                            // Reset current app tracking
-                            currentApp = null
-                            currentAppStartTime = 0
-                        }
-                        
-                        android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED -> {
-                            // Alternative way to track app usage
-                            if (currentApp != null && currentAppStartTime > 0) {
-                                val duration = timeStamp - currentAppStartTime
-                                if (duration > 0) {
-                                    appUsageMap[currentApp!!] = (appUsageMap[currentApp!!] ?: 0L) + duration
-                                    android.util.Log.d("ScreenTime", "App usage (resumed): $currentApp = ${duration / (1000 * 60)}min")
-                                }
-                            }
-                            
-                            currentApp = packageName
-                            currentAppStartTime = timeStamp
-                        }
-                        
-                        android.app.usage.UsageEvents.Event.ACTIVITY_PAUSED -> {
-                            if (currentApp == packageName && currentAppStartTime > 0) {
-                                val duration = timeStamp - currentAppStartTime
-                                if (duration > 0) {
-                                    appUsageMap[packageName] = (appUsageMap[packageName] ?: 0L) + duration
-                                    android.util.Log.d("ScreenTime", "App usage (paused): $packageName = ${duration / (1000 * 60)}min")
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Handle any remaining active app at the end
-                if (currentApp != null && currentAppStartTime > 0) {
-                    val duration = endTime - currentAppStartTime
-                    if (duration > 0) {
-                        appUsageMap[currentApp!!] = (appUsageMap[currentApp!!] ?: 0L) + duration
-                        android.util.Log.d("ScreenTime", "Final app usage: $currentApp = ${duration / (1000 * 60)}min")
-                    }
-                }
-                
-                // Also try the traditional approach as fallback
+                val startTime = getStartOfDay(endTime)
+
+                // For weekly data, get exactly 7 days of data
+                val weekStartTime = getStartOfDay(endTime - (6 * 24 * 60 * 60 * 1000L))
+
+                android.util.Log.d("ScreenTime", "Time boundaries - Start: ${Date(startTime)}, End: ${Date(endTime)}")
+                android.util.Log.d("ScreenTime", "Week boundaries - Start: ${Date(weekStartTime)}, End: ${Date(endTime)}")
+
+                // FIXED: Use INTERVAL_BEST for more accurate data
                 val todayStats = usageStatsManager.queryUsageStats(
                     UsageStatsManager.INTERVAL_BEST,
                     startTime,
                     endTime
-                )
-                
-                // Get weekly stats (last 7 days)
-                val weekStartTime = endTime - (7 * 24 * 60 * 60 * 1000)
+                ).filter { it.totalTimeInForeground > 0 }
+
                 val weeklyStats = usageStatsManager.queryUsageStats(
                     UsageStatsManager.INTERVAL_BEST,
                     weekStartTime,
                     endTime
-                )
-                
-                android.util.Log.d("ScreenTime", "UsageEvents approach found ${appUsageMap.size} apps")
-                android.util.Log.d("ScreenTime", "Traditional approach found ${todayStats.size} apps")
-                
-                // Log all collected usage data
-                appUsageMap.forEach { (packageName, time) ->
-                    android.util.Log.d("ScreenTime", "Final Usage - App: $packageName, Time: ${time / (1000 * 60)}min")
-                }
-                
-                // Use the approach that found more data, or combine both
-                val effectiveTodayStats = if (appUsageMap.isNotEmpty()) {
-                    // Convert appUsageMap to a format we can process
-                    android.util.Log.d("ScreenTime", "Using UsageEvents data with ${appUsageMap.size} apps")
-                    
-                    // Also merge with traditional stats for better coverage
-                    val combinedMap = appUsageMap.toMutableMap()
-                    todayStats.forEach { stats ->
-                        if (stats.totalTimeInForeground > 0) {
-                            val existingTime = combinedMap[stats.packageName] ?: 0L
-                            // Use the larger value to avoid double counting
-                            combinedMap[stats.packageName] = maxOf(existingTime, stats.totalTimeInForeground)
-                        }
-                    }
-                    
-                    android.util.Log.d("ScreenTime", "Combined data has ${combinedMap.size} apps")
-                    combinedMap.map { (packageName, time) ->
-                        android.util.Log.d("ScreenTime", "Combined - App: $packageName, Time: ${time / (1000 * 60)}min")
-                        UsageStatsData(packageName, time, startTime, endTime)
-                    }
-                } else {
-                    android.util.Log.d("ScreenTime", "Using traditional UsageStats data with ${todayStats.size} apps")
-                    todayStats.map { stats ->
-                        UsageStatsData(stats.packageName, stats.totalTimeInForeground, stats.firstTimeStamp, stats.lastTimeStamp)
-                    }
-                }
-                
-                // Convert weekly stats to the same format
-                val effectiveWeeklyStats = weeklyStats.map { stats ->
-                    UsageStatsData(stats.packageName, stats.totalTimeInForeground, stats.firstTimeStamp, stats.lastTimeStamp)
-                }
-                
-                // Process the data
-                android.util.Log.d("ScreenTime", "About to process effectiveTodayStats with ${effectiveTodayStats.size} items")
-                effectiveTodayStats.forEach { stats ->
-                    android.util.Log.d("ScreenTime", "Processing stats: ${stats.packageName} = ${stats.totalTimeInForeground}ms")
-                }
-                
-                val screenTimeData = processUsageStats(effectiveTodayStats, effectiveWeeklyStats)
-                android.util.Log.d("ScreenTime", "Final screen time data - Total: ${screenTimeData.totalScreenTime}min, Apps: ${screenTimeData.mostUsedApps.size}")
-                
-                // Log the final processed data for debugging
-                screenTimeData.mostUsedApps.forEach { app ->
-                    android.util.Log.d("ScreenTime", "Final App: ${app.appName}, Time: ${app.usageTime}min")
-                }
-                
+                ).filter { it.totalTimeInForeground > 0 }
+
+                android.util.Log.d("ScreenTime", "Today stats: ${todayStats.size}, Weekly: ${weeklyStats.size}")
+
+                val screenTimeData = processUsageStatsFixed(todayStats, weeklyStats, context)
+
                 _uiState.value = _uiState.value.copy(
                     screenTimeData = screenTimeData,
                     isLoading = false
                 )
-                android.util.Log.d("ScreenTime", "UI state updated with screen time data")
-                
+
             } catch (e: Exception) {
                 android.util.Log.e("ScreenTime", "Error loading screen time data", e)
                 _uiState.value = _uiState.value.copy(
@@ -252,95 +116,73 @@ class ScreenTimeViewModel : ViewModel() {
         }
     }
 
-    private fun processUsageStats(
-        todayStats: List<UsageStatsData>,
-        weeklyStats: List<UsageStatsData>
+    private fun processUsageStatsFixed(
+        todayStats: List<UsageStats>,
+        weeklyStats: List<UsageStats>,
+        context: Context
     ): ScreenTimeData {
-        android.util.Log.d("ScreenTime", "Processing usage stats - Today: ${todayStats.size}, Weekly: ${weeklyStats.size}")
-        
-        // Calculate total screen time for today
-        val totalScreenTime = todayStats.sumOf { it.totalTimeInForeground } / (1000 * 60) // Convert to minutes
-        
-        // Calculate daily average from weekly data
-        val dailyAverage = if (weeklyStats.isNotEmpty()) {
-            weeklyStats.sumOf { it.totalTimeInForeground } / (1000 * 60 * 7) // Convert to minutes, divide by 7 days
-        } else {
-            totalScreenTime
-        }
-        
-        // Calculate weekly total
-        val weeklyTotal = weeklyStats.sumOf { it.totalTimeInForeground } / (1000 * 60) // Convert to minutes
-        
-        android.util.Log.d("ScreenTime", "Calculated times - Today: ${totalScreenTime}min, Daily Avg: ${dailyAverage}min, Weekly: ${weeklyTotal}min")
-        
-        // Get most used apps (top 5)
-        val appUsageMap = mutableMapOf<String, Long>()
-        android.util.Log.d("ScreenTime", "Processing ${todayStats.size} apps for most used list")
-        todayStats.forEach { stats ->
-            android.util.Log.d("ScreenTime", "Processing app: ${stats.packageName}, Time: ${stats.totalTimeInForeground}ms")
-            if (stats.totalTimeInForeground > 0) {
-                val appName = getAppDisplayName(stats.packageName)
-                appUsageMap[appName] = (appUsageMap[appName] ?: 0L) + stats.totalTimeInForeground
-                android.util.Log.d("ScreenTime", "App usage: $appName = ${stats.totalTimeInForeground / (1000 * 60)}min")
+
+        android.util.Log.d("ScreenTime", "Processing ${todayStats.size} today stats, ${weeklyStats.size} weekly stats")
+
+        // FIXED: Properly aggregate app usage for today
+        val todayAppUsage = mutableMapOf<String, Long>()
+        val currentTime = System.currentTimeMillis()
+        val startOfToday = getStartOfDay(currentTime)
+
+        todayStats.forEach { stat ->
+            // FIXED: Only count usage that actually happened today
+            if (stat.lastTimeStamp >= startOfToday && stat.totalTimeInForeground > 0) {
+                val packageName = stat.packageName
+                val currentUsage = todayAppUsage[packageName] ?: 0L
+                todayAppUsage[packageName] = currentUsage + stat.totalTimeInForeground
+
+                android.util.Log.d("ScreenTime", "Today - ${packageName}: ${stat.totalTimeInForeground}ms")
             }
         }
-        
-        val mostUsedApps = appUsageMap.entries
+
+        // Calculate total screen time for today
+        val totalScreenTime = todayAppUsage.values.sum() / (1000 * 60) // Convert to minutes
+
+        android.util.Log.d("ScreenTime", "Total screen time today: ${totalScreenTime} minutes")
+
+        // FIXED: Calculate weekly data properly
+        val weeklyAppUsage = mutableMapOf<String, Long>()
+        val weekStart = getStartOfDay(currentTime - (6 * 24 * 60 * 60 * 1000L))
+
+        weeklyStats.forEach { stat ->
+            if (stat.lastTimeStamp >= weekStart && stat.totalTimeInForeground > 0) {
+                val packageName = stat.packageName
+                val currentUsage = weeklyAppUsage[packageName] ?: 0L
+                weeklyAppUsage[packageName] = currentUsage + stat.totalTimeInForeground
+            }
+        }
+
+        val weeklyTotal = weeklyAppUsage.values.sum() / (1000 * 60)
+        val dailyAverage = weeklyTotal / 7
+
+        android.util.Log.d("ScreenTime", "Weekly total: ${weeklyTotal} minutes, Daily average: ${dailyAverage} minutes")
+
+        // Get most used apps from today's data
+        val mostUsedApps = todayAppUsage.entries
+            .filter { it.value > 60000 } // Filter apps used more than 1 minute
             .sortedByDescending { it.value }
             .take(5)
-            .map { (appName, time) ->
+            .map { (packageName, time) ->
                 AppUsage(
-                    appName = appName,
-                    packageName = appName,
+                    appName = getAppDisplayName(packageName),
+                    packageName = packageName,
                     usageTime = time / (1000 * 60) // Convert to minutes
                 )
             }
-        
-        android.util.Log.d("ScreenTime", "Most used apps count: ${mostUsedApps.size}")
+
+        android.util.Log.d("ScreenTime", "Most used apps: ${mostUsedApps.size}")
         mostUsedApps.forEach { app ->
-            android.util.Log.d("ScreenTime", "Most used: ${app.appName} = ${app.usageTime}min")
+            android.util.Log.d("ScreenTime", "App: ${app.appName} = ${app.usageTime}min")
         }
-        
-        // If no real data, provide some realistic fallback data
-        if (totalScreenTime == 0L && mostUsedApps.isEmpty()) {
-            android.util.Log.d("ScreenTime", "No real data found, using fallback")
-            android.util.Log.d("ScreenTime", "totalScreenTime: $totalScreenTime, mostUsedApps.isEmpty(): ${mostUsedApps.isEmpty()}")
-            return createFallbackData()
-        } else {
-            android.util.Log.d("ScreenTime", "Real data found - Total: ${totalScreenTime}min, Apps: ${mostUsedApps.size}")
-            android.util.Log.d("ScreenTime", "Using REAL data, not fallback")
-        }
-        
-        // Get daily breakdown for the past week
-        val usageByDay = mutableMapOf<String, Long>()
-        val dateFormat = SimpleDateFormat("EEEE", Locale.getDefault())
-        val calendar = Calendar.getInstance()
-        
-        for (i in 6 downTo 0) {
-            calendar.add(Calendar.DAY_OF_YEAR, -i)
-            val dayName = dateFormat.format(calendar.time)
-            val dayStart = calendar.timeInMillis
-            calendar.add(Calendar.DAY_OF_YEAR, 1)
-            val dayEnd = calendar.timeInMillis
-            
-            val dayStats = weeklyStats.filter { 
-                it.firstTimeStamp >= dayStart && it.lastTimeStamp <= dayEnd 
-            }
-            val dayTotal = dayStats.sumOf { it.totalTimeInForeground } / (1000 * 60) // Convert to minutes
-            usageByDay[dayName] = dayTotal
-            
-            calendar.add(Calendar.DAY_OF_YEAR, i - 1) // Reset calendar
-        }
-        
-        // If daily breakdown is empty, create realistic fallback
-        if (usageByDay.values.all { it == 0L }) {
-            usageByDay.clear()
-            val fallbackDays = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
-            fallbackDays.forEach { day ->
-                usageByDay[day] = (300..600).random().toLong() // Random 5-10 hours
-            }
-        }
-        
+
+        // FIXED: Create proper daily breakdown
+        val usageByDay = createFixedDailyBreakdown(weeklyStats)
+
         return ScreenTimeData(
             totalScreenTime = totalScreenTime,
             dailyAverage = dailyAverage,
@@ -349,7 +191,53 @@ class ScreenTimeViewModel : ViewModel() {
             usageByDay = usageByDay
         )
     }
-    
+
+    // FIXED: Proper daily breakdown calculation
+    private fun createFixedDailyBreakdown(weeklyStats: List<UsageStats>): Map<String, Long> {
+        val usageByDay = mutableMapOf<String, Long>()
+        val dateFormat = SimpleDateFormat("EEEE", Locale.getDefault())
+        val calendar = Calendar.getInstance()
+
+        // Create day-wise breakdown for the past 7 days
+        for (i in 6 downTo 0) {
+            calendar.timeInMillis = System.currentTimeMillis()
+            calendar.add(Calendar.DAY_OF_YEAR, -i)
+
+            val dayStart = getStartOfDay(calendar.timeInMillis)
+            val dayEnd = dayStart + (24 * 60 * 60 * 1000L) - 1
+            val dayName = dateFormat.format(calendar.time)
+
+            // FIXED: Group apps by day and sum their usage
+            val dayAppUsage = mutableMapOf<String, Long>()
+
+            weeklyStats.forEach { stat ->
+                // Check if this usage stat falls within the current day
+                if (stat.lastTimeStamp in dayStart..dayEnd) {
+                    val packageName = stat.packageName
+                    val currentUsage = dayAppUsage[packageName] ?: 0L
+                    dayAppUsage[packageName] = currentUsage + stat.totalTimeInForeground
+                }
+            }
+
+            val dayTotal = dayAppUsage.values.sum() / (1000 * 60) // Convert to minutes
+            usageByDay[dayName] = dayTotal
+
+            android.util.Log.d("ScreenTime", "$dayName: ${dayTotal} minutes")
+        }
+
+        return usageByDay
+    }
+
+    private fun getStartOfDay(timeInMillis: Long): Long {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = timeInMillis
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
     private fun createFallbackData(): ScreenTimeData {
         android.util.Log.d("ScreenTime", "Creating fallback data")
         return ScreenTimeData(
@@ -422,7 +310,6 @@ class ScreenTimeViewModel : ViewModel() {
             "com.google.android.apps.walletnfcrel" -> "Wallet"
             "com.google.android.apps.pay" -> "Google Pay"
             "com.google.android.apps.tachyon" -> "Duo"
-            // Add more mappings based on the logs
             "com.google.android.dialer" -> "Phone"
             "com.android.launcher" -> "Home Screen"
             "com.oplus.sos" -> "Emergency"
@@ -486,4 +373,4 @@ class ScreenTimeViewModel : ViewModel() {
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
-} 
+}

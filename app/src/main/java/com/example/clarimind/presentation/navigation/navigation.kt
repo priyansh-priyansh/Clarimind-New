@@ -2,13 +2,17 @@ package com.example.clarimind.presentation.navigation
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat.startActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.example.clarimind.LoginActivity
+import com.example.clarimind.WelcomeActivity
 import com.example.clarimind.presentation.model.PHIScore
 import com.example.clarimind.presentation.model.User
 import com.example.clarimind.presentation.screens.ChatbotScreen
@@ -25,10 +29,13 @@ fun NavGraph() {
 
      val context = LocalContext.current
      val navController = rememberNavController()
+     val firebaseAuth = FirebaseAuth.getInstance()
 
      NavHost(
           navController = navController,
-          startDestination = EmotionCameraScreen
+          startDestination = com.example.clarimind.presentation.navigation.DashBoardScreen("Happy",2.4,5.3,4.3)
+          // EmotionCameraScreen
+          //
      ) {
           composable<EmotionCameraScreen> {
                EmotionCameraScreen(
@@ -85,6 +92,12 @@ fun NavGraph() {
                     phiScore = phiScore,
                     user = currentUser,
                     viewModel = dashboardViewModel,
+                    onLogout = {
+                         firebaseAuth.signOut()
+                         val intent = Intent(context,LoginActivity::class.java)
+                         context.startActivity(intent)
+                         (context as? Activity)?.finish()
+                    },
                     onRetakeAssessment = {
                          navController.navigate(EmotionCameraScreen) {
                               popUpTo<DashBoardScreen> { inclusive = true }

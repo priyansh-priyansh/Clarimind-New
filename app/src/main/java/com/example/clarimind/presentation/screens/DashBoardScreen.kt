@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -14,11 +15,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
@@ -41,7 +46,8 @@ fun DashBoardScreen(
     viewModel: DashboardViewModel = viewModel(),
     onRetakeAssessment: () -> Unit,
     onChatbotClick: () -> Unit,
-    onViewScreenTime: () -> Unit = {}
+    onViewScreenTime: () -> Unit = {},
+    onLogout: () -> Unit = {} // Add logout callback
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -64,6 +70,7 @@ fun DashBoardScreen(
             onRetakeAssessment = onRetakeAssessment,
             onChatbotClick = onChatbotClick,
             onViewScreenTime = onViewScreenTime,
+            onLogout = onLogout,
             paddingValues = paddingValues
         )
     }
@@ -76,6 +83,7 @@ private fun DashboardContent(
     onRetakeAssessment: () -> Unit,
     onChatbotClick: () -> Unit,
     onViewScreenTime: () -> Unit,
+    onLogout: () -> Unit,
     paddingValues: PaddingValues
 ) {
     LazyColumn(
@@ -87,7 +95,7 @@ private fun DashboardContent(
     ) {
         // User Profile Section
         item {
-            UserProfileSection(user = uiState.user)
+            UserProfileSection(user = uiState.user, onLogout = onLogout)
         }
 
         // Mood Summary Section
@@ -119,76 +127,115 @@ private fun DashboardContent(
 }
 
 @Composable
-private fun UserProfileSection(user: User) {
+private fun UserProfileSection(user: User, onLogout: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
+        Box (){
+            Column(
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFE3F2FD)),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (!user.profilePhotoUrl.isNullOrBlank()) {
-                    SubcomposeAsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(user.profilePhotoUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                        error = {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                modifier = Modifier.size(40.dp),
-                                tint = Color(0xFF2196F3)
-                            )
-                        },
-                        loading = {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        }
-                    )
-                } else {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE3F2FD)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!user.profilePhotoUrl.isNullOrBlank()) {
+                        SubcomposeAsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(user.profilePhotoUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop,
+                            error = {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(40.dp),
+                                    tint = Color(0xFF2196F3)
+                                )
+                            },
+                            loading = {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp),
+                            tint = Color(0xFF2196F3)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Name
+                Text(
+                    text = user.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1A1A1A)
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Email
+                Text(
+                    text = user.email,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF666666)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Logout Button
+                Button(
+                    onClick = onLogout,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE53935)
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.wrapContentWidth()
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Person,
+                        imageVector = Icons.Default.Logout,
                         contentDescription = null,
-                        modifier = Modifier.size(40.dp),
-                        tint = Color(0xFF2196F3)
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Logout",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
                     )
                 }
             }
+            IconButton(
+                onClick = {},
+                modifier = Modifier.size(70.dp)
+                    .align(Alignment.TopEnd)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit Profile",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Name
-            Text(
-                text = user.name,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1A1A1A)
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Email
-            Text(
-                text = user.email,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF666666)
-            )
         }
     }
 }
@@ -476,4 +523,42 @@ private fun getMoodDescription(phiScore: Double, detectedMood: String): String {
     }
 
     return baseDescription + moodSpecificMessage
+}
+
+@Preview(showBackground = true)
+@Composable
+fun Edit() {
+    Box {
+        TranslucentCircleIconButton(Icons.Default.Edit,"") { }
+    }
+}
+
+@Composable
+fun TranslucentCircleIconButton(
+    icon: ImageVector,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(56.dp)
+            .background(
+                color = Color.White.copy(alpha = 0.2f),
+                shape = CircleShape
+            )
+            .clip(CircleShape)
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.3f),
+                shape = CircleShape
+            )
+            .shadow(8.dp, CircleShape, ambientColor = Color.White.copy(alpha = 0.05f))
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+        )
+    }
 }
