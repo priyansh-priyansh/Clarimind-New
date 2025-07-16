@@ -3,6 +3,8 @@ package com.example.clarimind.presentation.screens
 import android.Manifest
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.util.Log
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -33,17 +35,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.clarimind.presentation.viewmodels.EmotionDetectionViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
+import java.nio.ByteBuffer
 
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun EmotionCameraScreen(
     onEmotionDetected: (String) -> Unit = {},
-    onBackPressed: () -> Unit = {}
+    onBackPressed: () -> Unit = {},
+    viewModel : EmotionDetectionViewModel = viewModel(),
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -56,9 +62,6 @@ fun EmotionCameraScreen(
 
     val previewView = remember { PreviewView(context) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
-
-    // Mock emotions for demo - replace with actual ML model results
-    val emotions = listOf("Happy", "Sad", "Angry", "Surprised", "Neutral", "Anxious", "Excited")
 
     LaunchedEffect(cameraPermissionState.status.isGranted) {
         if (cameraPermissionState.status.isGranted) {
@@ -124,10 +127,11 @@ fun EmotionCameraScreen(
                         capturePhoto(
                             imageCapture = imageCapture,
                             context = context,
+                            lensFacing = lensFacing,
                             onImageCaptured = { bitmap ->
                                 isProcessing = true
-                                // Simulate emotion detection processing
-                                processEmotionDetection(bitmap) { emotion ->
+                                // Process the real captured bitmap
+                                viewModel.processEmotionDetection(bitmap,context) { emotion ->
                                     isProcessing = false
                                     detectedEmotion = emotion
                                 }
@@ -535,22 +539,25 @@ private fun setupCamera(
 private fun capturePhoto(
     imageCapture: ImageCapture?,
     context: Context,
+    lensFacing: Int,
     onImageCaptured: (Bitmap) -> Unit
 ) {
     imageCapture?.let { capture ->
-        val outputFileOptions = ImageCapture.OutputFileOptions.Builder(
-            context.cacheDir.resolve("emotion_capture_${System.currentTimeMillis()}.jpg")
-        ).build()
-
+        // Use in-memory capture with OnImageCapturedCallback
+        // This directly provides ImageProxy without saving to file
         capture.takePicture(
-            outputFileOptions,
             ContextCompat.getMainExecutor(context),
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    // In a real implementation, you would load the bitmap and process it
-                    // For now, we'll simulate with a placeholder
-                    val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-                    onImageCaptured(bitmap)
+            object : ImageCapture.OnImageCapturedCallback() {
+                override fun onCaptureSuccess(imageProxy: ImageProxy) {
+                    try {
+                        // Convert ImageProxy to Bitmap
+                        val bitmap = imageProxyToBitmap(imageProxy, lensFacing)
+                        onImageCaptured(bitmap)
+                    } catch (e: Exception) {
+                        Log.e("PhotoCapture", "Error converting image to bitmap", e)
+                    } finally {
+                        imageProxy.close()
+                    }
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -561,23 +568,27 @@ private fun capturePhoto(
     }
 }
 
-private fun processEmotionDetection(
-    bitmap: Bitmap,
-    onEmotionDetected: (String) -> Unit
-) {
-    // Simulate ML processing delay
-    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-        // Mock emotion detection - replace with actual ML model
-        val emotions = listOf("Happy", "Sad", "Angry", "Surprised", "Neutral", "Anxious", "Excited")
-        val detectedEmotion = emotions.random()
-        onEmotionDetected(detectedEmotion)
-    }, 2000) // 2 second delay to simulate processing
-}
+private fun imageProxyToBitmap(imageProxy: ImageProxy, lensFacing: Int): Bitmap {
+    val buffer: ByteBuffer = imageProxy.planes[0].buffer
+    val bytes = ByteArray(buffer.remaining())
+    buffer.get(bytes)
 
-@Preview(showSystemUi = true)
-@Composable
-fun ShowScreen() {
-    MaterialTheme {
-        EmotionCameraScreen()
+    var bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+
+    // Handle rotation and mirroring
+    val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+    val matrix = Matrix()
+
+    // Apply rotation
+    matrix.postRotate(rotationDegrees.toFloat())
+
+    // Mirror the image if using front camera
+    if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
+        matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
     }
+
+    // Apply transformations
+    bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+
+    return bitmap
 }
