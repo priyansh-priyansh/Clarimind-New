@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat.startActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -21,6 +22,7 @@ import com.example.clarimind.presentation.screens.EmotionCameraScreen
 import com.example.clarimind.presentation.screens.QuestionnaireScreen
 import com.example.clarimind.presentation.screens.ScreenTimeScreen
 import com.example.clarimind.presentation.viewmodels.DashboardViewModel
+import com.example.clarimind.utils.UserPreferences
 import com.google.firebase.auth.FirebaseAuth
 
 @SuppressLint("ContextCastToActivity")
@@ -30,11 +32,34 @@ fun NavGraph() {
      val context = LocalContext.current
      val navController = rememberNavController()
      val firebaseAuth = FirebaseAuth.getInstance()
+     val userPreferences = remember { com.example.clarimind.utils.UserPreferences(context) }
+     
+     // Determine start destination based on whether user has completed the test
+     val startDestination = if (userPreferences.hasCompletedTest()) {
+          // User has completed test, get saved PHI scores and mood
+          val phiScores = userPreferences.getLastPHIScores()
+          val lastMood = userPreferences.getLastMood() ?: "Neutral"
+          
+          if (phiScores != null) {
+               // We have all the data needed for the dashboard
+               DashBoardScreen(
+                    mood = lastMood,
+                    rememberedWellBeing = phiScores.first,
+                    experiencedWellBeing = phiScores.second,
+                    combinedPHI = phiScores.third
+               )
+          } else {
+               // Missing PHI scores, start with emotion camera
+               EmotionCameraScreen
+          }
+     } else {
+          // User hasn't completed test, start with emotion camera
+          EmotionCameraScreen
+     }
 
      NavHost(
           navController = navController,
-          startDestination = EmotionCameraScreen
-          //com.example.clarimind.presentation.navigation.DashBoardScreen("Happy",2.4,5.3,4.3)
+          startDestination = startDestination
      ) {
           composable<EmotionCameraScreen> {
                EmotionCameraScreen(
@@ -54,6 +79,15 @@ fun NavGraph() {
                QuestionnaireScreen(
                     mood = args.mood,
                     onResultsCalculated = { phiScore ->
+                         // Save test completion status and PHI scores
+                         userPreferences.setTestCompleted(true)
+                         userPreferences.setLastMood(args.mood)
+                         userPreferences.savePHIScores(
+                              phiScore.rememberedWellBeing,
+                              phiScore.experiencedWellBeing,
+                              phiScore.combinedPHI
+                         )
+                         
                          navController.navigate(
                               DashBoardScreen(
                                    mood = args.mood,
@@ -92,12 +126,16 @@ fun NavGraph() {
                     user = currentUser,
                     viewModel = dashboardViewModel,
                     onLogout = {
+                         // Clear test completion status when logging out
+                         userPreferences.clearAll()
                          firebaseAuth.signOut()
                          val intent = Intent(context,LoginActivity::class.java)
                          context.startActivity(intent)
                          (context as? Activity)?.finish()
                     },
                     onRetakeAssessment = {
+                         // Reset test completion status when retaking assessment
+                         userPreferences.setTestCompleted(false)
                          navController.navigate(EmotionCameraScreen) {
                               popUpTo<DashBoardScreen> { inclusive = true }
                          }
