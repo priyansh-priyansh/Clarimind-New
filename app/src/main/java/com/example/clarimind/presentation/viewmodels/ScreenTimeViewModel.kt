@@ -17,6 +17,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import com.example.clarimind.data.AppUsageEntity
+import com.example.clarimind.data.UsageDatabase
+import com.example.clarimind.data.FirebaseSyncHelper
 
 data class ScreenTimeUiState(
     val screenTimeData: ScreenTimeData? = null,
@@ -100,7 +103,8 @@ class ScreenTimeViewModel : ViewModel() {
                 android.util.Log.d("ScreenTime", "Today stats: ${todayStats.size}, Weekly: ${weeklyStats.size}")
 
                 val screenTimeData = processUsageStatsFixed(todayStats, weeklyStats, context)
-
+                // Save today's per-app usage to Room
+                saveTodayAppUsageToDb(context, screenTimeData.mostUsedApps)
                 _uiState.value = _uiState.value.copy(
                     screenTimeData = screenTimeData,
                     isLoading = false
@@ -114,6 +118,23 @@ class ScreenTimeViewModel : ViewModel() {
                 )
             }
         }
+    }
+
+    private suspend fun saveTodayAppUsageToDb(context: Context, appUsages: List<AppUsage>) {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val today = dateFormat.format(Date())
+        val entities = appUsages.map {
+            AppUsageEntity(
+                appName = it.appName,
+                packageName = it.packageName,
+                usageTime = it.usageTime,
+                date = today
+            )
+        }
+        val db = UsageDatabase.getInstance(context)
+        db.usageDao().insertAll(entities)
+        // Upload to Firestore
+        entities.forEach { FirebaseSyncHelper.uploadAppUsage(it) }
     }
 
     private fun processUsageStatsFixed(
@@ -370,7 +391,58 @@ class ScreenTimeViewModel : ViewModel() {
         }
     }
 
+    // App category mapping
+    private val appCategoryMap = mapOf(
+        "com.instagram.android" to "Social",
+        "com.facebook.katana" to "Social",
+        "com.twitter.android" to "Social",
+        "com.snapchat.android" to "Social",
+        "com.whatsapp" to "Messaging",
+        "org.telegram.messenger" to "Messaging",
+        "com.google.android.gm" to "Productivity",
+        "com.microsoft.teams" to "Productivity",
+        "com.google.android.apps.docs.editors.docs" to "Productivity",
+        "com.google.android.youtube" to "Entertainment",
+        "com.netflix.mediaclient" to "Entertainment",
+        "com.spotify.music" to "Entertainment",
+        // Add more mappings as needed
+    )
+
+    // Analyze user behavior and return insights
+    fun analyzeUserBehavior(appUsages: List<AppUsage>): List<String> {
+        val usageByCategory = mutableMapOf<String, Long>()
+        for (app in appUsages) {
+            val category = appCategoryMap[app.packageName] ?: "Other"
+            usageByCategory[category] = (usageByCategory[category] ?: 0) + app.usageTime
+        }
+        val insights = mutableListOf<String>()
+        if ((usageByCategory["Social"] ?: 0) > 120) {
+            insights.add("You’ve spent over 2 hours on social media today. Consider taking a break.")
+        }
+        if ((usageByCategory["Messaging"] ?: 0) > 60) {
+            insights.add("A lot of time spent messaging. Try to disconnect for a while.")
+        }
+        if ((usageByCategory["Entertainment"] ?: 0) > 90) {
+            insights.add("High entertainment app usage detected. Balance it with other activities.")
+        }
+        if ((usageByCategory["Productivity"] ?: 0) > 180) {
+            insights.add("Great job staying productive! Remember to take breaks to avoid burnout.")
+        }
+        if (insights.isEmpty()) {
+            insights.add("Your app usage looks balanced today. Keep it up!")
+        }
+        return insights
+    }
+
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    fun getAppUsageForDate(context: Context, date: String, onResult: (List<AppUsageEntity>) -> Unit) {
+        viewModelScope.launch {
+            val db = UsageDatabase.getInstance(context)
+            val usages = db.usageDao().getUsagesForDate(date)
+            onResult(usages)
+        }
     }
 }

@@ -164,6 +164,13 @@ fun ScreenTimeScreen(
                         MostUsedAppsCard(uiState.screenTimeData!!.mostUsedApps)
                     }
 
+                    // Digital Wellbeing Insights
+                    item {
+                        DigitalWellbeingInsightsCard(
+                            insights = viewModel.analyzeUserBehavior(uiState.screenTimeData!!.mostUsedApps)
+                        )
+                    }
+
                     // Daily Breakdown
                     item {
                         DailyBreakdownCard(uiState.screenTimeData!!.usageByDay)
@@ -721,6 +728,62 @@ private fun ErrorCard(
                     )
                 ) {
                     Text("Retry")
+                }
+            }
+        }
+    }
+} 
+
+@Composable
+private fun DigitalWellbeingInsightsCard(insights: List<String>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Insights,
+                    contentDescription = null,
+                    tint = Color(0xFF6C63FF),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Your Digital Wellbeing Insights",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1A1A1A)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            insights.forEach { insight ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = insight,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF333333)
+                    )
                 }
             }
         }

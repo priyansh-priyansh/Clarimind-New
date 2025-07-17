@@ -34,6 +34,7 @@ fun NavGraph() {
      NavHost(
           navController = navController,
           startDestination = EmotionCameraScreen
+          //com.example.clarimind.presentation.navigation.DashBoardScreen("Happy",2.4,5.3,4.3)
      ) {
           composable<EmotionCameraScreen> {
                EmotionCameraScreen(
