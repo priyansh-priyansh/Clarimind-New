@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.clarimind.presentation.viewmodels.BoxBreathingViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BoxBreathingExerciseScreen(onBack: () -> Unit, viewModel: BoxBreathingViewModel = viewModel()) {
     val phase by viewModel.phase.collectAsState()

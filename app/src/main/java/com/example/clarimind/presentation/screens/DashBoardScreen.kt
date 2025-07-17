@@ -595,6 +595,7 @@ enum class BreathingExerciseType {
     BOX, FOUR_SEVEN_EIGHT, ALTERNATE_NOSTRIL
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BreathingExerciseSheet(
     onDismiss: () -> Unit,

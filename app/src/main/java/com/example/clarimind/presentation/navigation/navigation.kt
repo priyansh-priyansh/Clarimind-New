@@ -27,6 +27,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.example.clarimind.presentation.navigation.BoxBreathingScreen
 import com.example.clarimind.presentation.navigation.FourSevenEightBreathingScreen
 import com.example.clarimind.presentation.navigation.AlternateNostrilBreathingScreen
+import com.example.clarimind.presentation.screens.AlternateNostrilBreathingExerciseScreen
+import com.example.clarimind.presentation.screens.BoxBreathingExerciseScreen
+import com.example.clarimind.presentation.screens.BreathingExerciseType
+import com.example.clarimind.presentation.screens.FourSevenEightBreathingExerciseScreen
 
 @SuppressLint("ContextCastToActivity")
 @Composable
