@@ -24,6 +24,9 @@ import com.example.clarimind.presentation.screens.ScreenTimeScreen
 import com.example.clarimind.presentation.viewmodels.DashboardViewModel
 import com.example.clarimind.utils.UserPreferences
 import com.google.firebase.auth.FirebaseAuth
+import com.example.clarimind.presentation.navigation.BoxBreathingScreen
+import com.example.clarimind.presentation.navigation.FourSevenEightBreathingScreen
+import com.example.clarimind.presentation.navigation.AlternateNostrilBreathingScreen
 
 @SuppressLint("ContextCastToActivity")
 @Composable
@@ -152,6 +155,13 @@ fun NavGraph() {
                     },
                     onViewScreenTime = {
                          navController.navigate(ScreenTimeScreen)
+                    },
+                    onBreathingExerciseSelected = {
+                         when (it) {
+                              BreathingExerciseType.BOX -> navController.navigate(BoxBreathingScreen)
+                              BreathingExerciseType.FOUR_SEVEN_EIGHT -> navController.navigate(FourSevenEightBreathingScreen)
+                              BreathingExerciseType.ALTERNATE_NOSTRIL -> navController.navigate(AlternateNostrilBreathingScreen)
+                         }
                     }
                )
           }
@@ -179,6 +189,16 @@ fun NavGraph() {
                          navController.popBackStack()
                     }
                )
+          }
+
+          composable<BoxBreathingScreen> {
+               BoxBreathingExerciseScreen(onBack = { navController.popBackStack() })
+          }
+          composable<FourSevenEightBreathingScreen> {
+               FourSevenEightBreathingExerciseScreen(onBack = { navController.popBackStack() })
+          }
+          composable<AlternateNostrilBreathingScreen> {
+               AlternateNostrilBreathingExerciseScreen(onBack = { navController.popBackStack() })
           }
      }
 }

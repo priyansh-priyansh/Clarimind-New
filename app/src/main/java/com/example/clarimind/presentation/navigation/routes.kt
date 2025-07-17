@@ -27,3 +27,12 @@ data class ChatbotScreen(
 
 @Serializable
 object ScreenTimeScreen
+
+@Serializable
+object BoxBreathingScreen
+
+@Serializable
+object FourSevenEightBreathingScreen
+
+@Serializable
+object AlternateNostrilBreathingScreen

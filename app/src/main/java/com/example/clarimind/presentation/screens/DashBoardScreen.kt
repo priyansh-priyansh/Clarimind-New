@@ -37,6 +37,7 @@ import com.example.clarimind.presentation.viewmodels.DashboardViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import androidx.compose.foundation.clickable
 
 @Composable
 fun DashBoardScreen(
@@ -47,9 +48,11 @@ fun DashBoardScreen(
     onRetakeAssessment: () -> Unit,
     onChatbotClick: () -> Unit,
     onViewScreenTime: () -> Unit = {},
-    onLogout: () -> Unit = {} // Add logout callback
+    onLogout: () -> Unit = {}, // Add logout callback
+    onBreathingExerciseSelected: (BreathingExerciseType) -> Unit = {} // New callback
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showBreathingSheet by remember { mutableStateOf(false) }
 
     // Update the ViewModel with the passed PHI score and user when the screen is first composed
     LaunchedEffect(phiScore, user) {
@@ -57,13 +60,7 @@ fun DashBoardScreen(
         viewModel.updateUser(user)
     }
 
-    Scaffold(
-        topBar = {
-            // Add some top spacing like a scaffold
-            Spacer(modifier = Modifier.height(16.dp))
-        },
-        containerColor = Color(0xFFF8F9FA)
-    ) { paddingValues ->
+    Box(modifier = Modifier.fillMaxSize()) {
         DashboardContent(
             uiState = uiState,
             mood = mood,
@@ -71,8 +68,38 @@ fun DashBoardScreen(
             onChatbotClick = onChatbotClick,
             onViewScreenTime = onViewScreenTime,
             onLogout = onLogout,
-            paddingValues = paddingValues
+            paddingValues = PaddingValues(0.dp)
         )
+        // Breathing Exercises Button
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 32.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Button(
+                onClick = { showBreathingSheet = true },
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF)),
+                modifier = Modifier
+                    .height(56.dp)
+                    .widthIn(min = 200.dp)
+                    .shadow(8.dp, RoundedCornerShape(24.dp))
+            ) {
+                Icon(Icons.Default.SelfImprovement, contentDescription = null, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Breathing Exercises", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+        }
+        if (showBreathingSheet) {
+            BreathingExerciseSheet(
+                onDismiss = { showBreathingSheet = false },
+                onExerciseSelected = {
+                    showBreathingSheet = false
+                    onBreathingExerciseSelected(it)
+                }
+            )
+        }
     }
 }
 
@@ -560,5 +587,85 @@ fun TranslucentCircleIconButton(
             imageVector = icon,
             contentDescription = contentDescription,
         )
+    }
+}
+
+// Data model for exercise type
+enum class BreathingExerciseType {
+    BOX, FOUR_SEVEN_EIGHT, ALTERNATE_NOSTRIL
+}
+
+@Composable
+fun BreathingExerciseSheet(
+    onDismiss: () -> Unit,
+    onExerciseSelected: (BreathingExerciseType) -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        tonalElevation = 8.dp,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Choose a Breathing Exercise", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(16.dp))
+            BreathingExerciseCard(
+                icon = Icons.Default.CropSquare,
+                title = "Box Breathing",
+                description = "Breathe in, hold, out, hold (4-4-4-4)",
+                onClick = { onExerciseSelected(BreathingExerciseType.BOX) }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            BreathingExerciseCard(
+                icon = Icons.Default.Timer,
+                title = "4-7-8 Breathing",
+                description = "Inhale 4s, hold 7s, exhale 8s",
+                onClick = { onExerciseSelected(BreathingExerciseType.FOUR_SEVEN_EIGHT) }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            BreathingExerciseCard(
+                icon = Icons.Default.Air,
+                title = "Alternate Nostril",
+                description = "Breathe through alternate nostrils",
+                onClick = { onExerciseSelected(BreathingExerciseType.ALTERNATE_NOSTRIL) }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                Text("Cancel")
+            }
+        }
+    }
+}
+
+@Composable
+fun BreathingExerciseCard(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp), tint = Color(0xFF6C63FF))
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(description, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF666666))
+            }
+        }
     }
 }
