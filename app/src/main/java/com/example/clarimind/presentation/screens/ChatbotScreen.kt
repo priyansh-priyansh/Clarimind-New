@@ -1,5 +1,6 @@
 package com.example.clarimind.presentation.screens
 
+import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -26,11 +28,23 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.clarimind.presentation.model.PHIScore
 import com.example.clarimind.presentation.viewmodels.ChatbotViewModel
 import com.example.clarimind.presentation.viewmodels.ChatMessage
 import kotlinx.coroutines.launch
+
+class ViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(ChatbotViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return ChatbotViewModel(application) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +52,7 @@ fun ChatbotScreen(
     mood: String,
     phiScore: PHIScore,
     onBackPressed: () -> Unit,
-    viewModel: ChatbotViewModel = viewModel()
+    viewModel: ChatbotViewModel = viewModel(factory = ViewModelFactory(LocalContext.current.applicationContext as Application))
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
@@ -359,4 +373,4 @@ fun ChatInputSection(
             }
         }
     }
-} 
+}

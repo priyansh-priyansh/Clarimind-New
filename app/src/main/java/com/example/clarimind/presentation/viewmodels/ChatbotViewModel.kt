@@ -1,8 +1,12 @@
 package com.example.clarimind.presentation.viewmodels
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.clarimind.config.GeminiConfig
+import com.example.clarimind.data.ChatMessageEntity
+import com.example.clarimind.data.FirebaseSyncHelper
+import com.example.clarimind.data.UsageDatabase
 import com.example.clarimind.presentation.model.PHIScore
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
@@ -26,11 +30,14 @@ data class ChatbotUiState(
     val error: String? = null
 )
 
-class ChatbotViewModel : ViewModel() {
+class ChatbotViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(ChatbotUiState())
     val uiState: StateFlow<ChatbotUiState> = _uiState.asStateFlow()
 
     private var userContext: String = ""
+    private val database = UsageDatabase.getInstance(application)
+    private val chatMessageDao = database.chatMessageDao()
+    private val userId = FirebaseSyncHelper.getCurrentUserId()
     private var generativeModel: GenerativeModel? = null
 
     fun initializeChat(mood: String, phiScore: PHIScore) {
@@ -47,14 +54,52 @@ class ChatbotViewModel : ViewModel() {
             generativeModel = null
         }
         
-        val welcomeMessage = ChatMessage(
-            text = buildWelcomeMessage(mood, phiScore),
-            isUser = false
-        )
-        
-        _uiState.value = _uiState.value.copy(
-            messages = listOf(welcomeMessage)
-        )
+        // Load previous messages from database
+        viewModelScope.launch {
+            try {
+                val savedMessages = chatMessageDao.getMessagesForUser(userId)
+                
+                if (savedMessages.isNotEmpty()) {
+                    // Convert database entities to UI model
+                    val messages = savedMessages.map { entity ->
+                        ChatMessage(
+                            id = entity.id.toString(),
+                            text = entity.message,
+                            isUser = entity.sender == "user",
+                            timestamp = entity.timestamp
+                        )
+                    }
+                    
+                    _uiState.value = _uiState.value.copy(
+                        messages = messages
+                    )
+                } else {
+                    // No saved messages, show welcome message
+                    val welcomeMessage = ChatMessage(
+                        text = buildWelcomeMessage(mood, phiScore),
+                        isUser = false
+                    )
+                    
+                    _uiState.value = _uiState.value.copy(
+                        messages = listOf(welcomeMessage)
+                    )
+                    
+                    // Save welcome message to database
+                    saveMessageToDatabase(welcomeMessage)
+                }
+            } catch (e: Exception) {
+                // If database access fails, just show welcome message
+                val welcomeMessage = ChatMessage(
+                    text = buildWelcomeMessage(mood, phiScore),
+                    isUser = false
+                )
+                
+                _uiState.value = _uiState.value.copy(
+                    messages = listOf(welcomeMessage),
+                    error = "Failed to load chat history: ${e.message}"
+                )
+            }
+        }
     }
 
     fun sendMessage(message: String) {
@@ -70,6 +115,9 @@ class ChatbotViewModel : ViewModel() {
             isLoading = true,
             error = null
         )
+        
+        // Save user message to database
+        saveMessageToDatabase(userMessage)
 
         viewModelScope.launch {
             try {
@@ -83,6 +131,9 @@ class ChatbotViewModel : ViewModel() {
                     messages = _uiState.value.messages + botMessage,
                     isLoading = false
                 )
+                
+                // Save bot message to database
+                saveMessageToDatabase(botMessage)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -206,4 +257,28 @@ class ChatbotViewModel : ViewModel() {
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
-} 
+    
+    private fun saveMessageToDatabase(message: ChatMessage) {
+        viewModelScope.launch {
+            try {
+                val entity = ChatMessageEntity(
+                    userId = userId,
+                    sender = if (message.isUser) "user" else "bot",
+                    message = message.text,
+                    timestamp = message.timestamp
+                )
+                
+                // Save to Room database
+                chatMessageDao.insert(entity)
+                
+                // Sync with Firebase
+                FirebaseSyncHelper.uploadChatMessage(entity)
+            } catch (e: Exception) {
+                // If saving fails, show error but don't interrupt the chat flow
+                _uiState.value = _uiState.value.copy(
+                    error = "Failed to save message: ${e.message}"
+                )
+            }
+        }
+    }
+}
