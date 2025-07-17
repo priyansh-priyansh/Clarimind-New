@@ -26,4 +26,12 @@ object FirebaseSyncHelper {
             .collection("app_usage")
             .add(appUsage)
     }
+
+    fun uploadChatMessage(message: ChatMessageEntity) {
+        val userId = getCurrentUserId()
+        db.collection("users")
+            .document(userId)
+            .collection("chat_messages")
+            .add(message)
+    }
 } 
