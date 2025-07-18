@@ -39,6 +39,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import androidx.compose.foundation.clickable
 import androidx.navigation.NavController
+import com.example.clarimind.data.HappinessHistoryEntity
+import com.example.clarimind.data.UsageDatabase
+import com.example.clarimind.data.FirebaseSyncHelper
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun DashBoardScreen(
@@ -54,6 +67,16 @@ fun DashBoardScreen(
     onViewHistory: () -> Unit = {} // Add callback for history
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var phiHistory by remember { mutableStateOf<List<HappinessHistoryEntity>>(emptyList()) }
+    val context = LocalContext.current
+    val userId = FirebaseSyncHelper.getCurrentUserId()
+
+    // Fetch PHI history for chart
+    LaunchedEffect(Unit) {
+        val db = UsageDatabase.getInstance(context)
+        phiHistory = db.happinessHistoryDao().getHistoryForUser(userId)
+    }
+
     var showBreathingSheet by remember { mutableStateOf(false) }
 
     // Update the ViewModel with the passed PHI score and user when the screen is first composed
@@ -71,6 +94,7 @@ fun DashBoardScreen(
             onViewScreenTime = onViewScreenTime,
             onLogout = onLogout,
             onViewHistory = onViewHistory,
+            phiHistory = phiHistory,
             paddingValues = PaddingValues(0.dp)
         )
         // Breathing Exercises Button
@@ -115,6 +139,7 @@ private fun DashboardContent(
     onViewScreenTime: () -> Unit,
     onLogout: () -> Unit,
     onViewHistory: () -> Unit,
+    phiHistory: List<HappinessHistoryEntity>,
     paddingValues: PaddingValues
 ) {
     LazyColumn(
@@ -147,12 +172,41 @@ private fun DashboardContent(
             )
         }
 
+        item {
+            if (phiHistory.count { it.combinedPHI != 0.0 } > 1) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Happiness Trend",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6C63FF),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HappinessLineChart(phiHistory)
+                    }
+                }
+            }
+        }
+
         // Action Buttons Section
         item {
             ActionButtonsSection(
                 onRetakeAssessment = onRetakeAssessment,
                 onViewScreenTime = onViewScreenTime,
-                onViewHistory = onViewHistory
+                onViewHistory = onViewHistory,
+                onChatbotClick = onChatbotClick,
+                onLogout = onLogout
             )
         }
         // Add extra space at the end so the last button is not covered by the floating button
@@ -467,75 +521,82 @@ private fun SuggestionItem(suggestion: String) {
 private fun ActionButtonsSection(
     onRetakeAssessment: () -> Unit,
     onViewScreenTime: () -> Unit,
-    onViewHistory: () -> Unit
+    onViewHistory: () -> Unit,
+    onChatbotClick: () -> Unit,
+    onLogout: () -> Unit
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Retake Assessment Button
-        Button(
-            onClick = onRetakeAssessment,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF2196F3)
-            ),
-            shape = RoundedCornerShape(12.dp)
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Retake PHI Assessment",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
+            OutlinedButton(
+                onClick = onRetakeAssessment,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                border = ButtonDefaults.outlinedButtonBorder,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF2196F3))
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Retake Assessment")
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            OutlinedButton(
+                onClick = onViewScreenTime,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                border = ButtonDefaults.outlinedButtonBorder,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF4CAF50))
+            ) {
+                Icon(Icons.Default.Schedule, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Screen Time")
+            }
         }
-
-        // View Screen Time Button
-        Button(
-            onClick = onViewScreenTime,
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF4CAF50)
-            ),
-            shape = RoundedCornerShape(12.dp)
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Icon(
-                imageVector = Icons.Default.Schedule,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "View Screen Time",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
+            OutlinedButton(
+                onClick = onViewHistory,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                border = ButtonDefaults.outlinedButtonBorder,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF6C63FF))
+            ) {
+                Icon(Icons.Default.History, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Mood History")
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            OutlinedButton(
+                onClick = onChatbotClick,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                border = ButtonDefaults.outlinedButtonBorder,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFAB47BC))
+            ) {
+                Icon(Icons.Default.Chat, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Chatbot")
+            }
         }
-
-        // View Happiness & Mood History Button
-        Button(
-            onClick = onViewHistory,
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = onLogout,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF6C63FF)
-            ),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(16.dp),
+            border = ButtonDefaults.outlinedButtonBorder,
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE53935))
         ) {
-            Icon(
-                imageVector = Icons.Default.History,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "View Happiness & Mood History",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
+            Icon(Icons.Default.Logout, contentDescription = null)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Logout")
         }
     }
 }
@@ -582,6 +643,77 @@ private fun getMoodDescription(phiScore: Double, detectedMood: String): String {
     }
 
     return baseDescription + moodSpecificMessage
+}
+
+@Composable
+fun HappinessLineChart(history: List<HappinessHistoryEntity>) {
+    val filtered = history.filter { it.combinedPHI != 0.0 }
+    if (filtered.size < 2) return
+    val points = filtered.mapIndexed { idx, h ->
+        idx to h.combinedPHI
+    }
+    val maxScore = filtered.maxOf { it.combinedPHI }.coerceAtLeast(10.0)
+    val minScore = filtered.minOf { it.combinedPHI }.coerceAtMost(0.0)
+    val chartHeight = 160.dp
+    val chartWidth = 320.dp
+    val n = points.size
+    val xStep = if (n > 1) 1f / (n - 1) else 1f
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(chartHeight)
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            // Draw axes
+            drawLine(
+                color = ComposeColor(0xFFB0BEC5),
+                start = Offset(0f, h),
+                end = Offset(w, h),
+                strokeWidth = 3f
+            )
+            drawLine(
+                color = ComposeColor(0xFFB0BEC5),
+                start = Offset(0f, 0f),
+                end = Offset(0f, h),
+                strokeWidth = 3f
+            )
+            // Draw line
+            val path = Path()
+            points.forEachIndexed { i, (_, score) ->
+                val x = i * w / (n - 1).coerceAtLeast(1)
+                val y = h - ((score - minScore) / (maxScore - minScore).coerceAtLeast(1e-3)) * h
+                if (i == 0) path.moveTo(x, y)
+                else path.lineTo(x, y)
+            }
+            drawPath(
+                path = path,
+                color = ComposeColor(0xFF6C63FF),
+                style = Stroke(width = 6f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            )
+            // Draw points
+            points.forEachIndexed { i, (_, score) ->
+                val x = i * w / (n - 1).coerceAtLeast(1)
+                val y = h - ((score - minScore) / (maxScore - minScore).coerceAtLeast(1e-3)) * h
+                drawCircle(
+                    color = ComposeColor(0xFF6C63FF),
+                    radius = 8f,
+                    center = Offset(x, y)
+                )
+            }
+        }
+        // Show min/max labels
+        Column(
+            modifier = Modifier.fillMaxHeight(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("${"%.1f".format(maxScore)}", color = ComposeColor(0xFF666666), fontSize = 12.sp)
+            Text("${"%.1f".format(minScore)}", color = ComposeColor(0xFF666666), fontSize = 12.sp)
+        }
+    }
 }
 
 @Preview(showBackground = true)
