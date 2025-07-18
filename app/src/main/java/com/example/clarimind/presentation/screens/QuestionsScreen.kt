@@ -22,7 +22,7 @@ import com.example.clarimind.presentation.model.SectionAQuestion
 import com.example.clarimind.presentation.model.SectionBQuestion
 import com.example.clarimind.presentation.viewmodels.QuestionnaireViewModel
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModelScope
+
 import kotlinx.coroutines.launch
 import com.example.clarimind.data.HappinessHistoryEntity
 import com.example.clarimind.data.UsageDatabase
@@ -61,10 +61,7 @@ fun QuestionnaireScreen(
                 combinedPHI = uiState.phiScore!!.combinedPHI,
                 timestamp = now
             )
-            // Save in background
-            androidx.lifecycle.viewmodel.compose.viewModelScope.launch {
-                db.happinessHistoryDao().insert(entity)
-            }
+            db.happinessHistoryDao().insert(entity)
         }
     }
 

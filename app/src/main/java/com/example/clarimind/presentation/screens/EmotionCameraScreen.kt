@@ -46,7 +46,6 @@ import com.example.clarimind.data.HappinessHistoryEntity
 import com.example.clarimind.data.UsageDatabase
 import com.example.clarimind.data.FirebaseSyncHelper
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModelScope
 import kotlinx.coroutines.launch
 
 
@@ -83,9 +82,8 @@ fun EmotionCameraScreen(
                 combinedPHI = 0.0,
                 timestamp = now
             )
-            viewModelScope.launch {
-                db.happinessHistoryDao().insert(entity)
-            }
+            db.happinessHistoryDao().insert(entity)
+
         }
     }
 
