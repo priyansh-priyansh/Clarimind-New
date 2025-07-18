@@ -3,6 +3,7 @@ package com.example.clarimind.presentation.screens
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -24,14 +25,11 @@ fun BoxBreathingExerciseScreen(onBack: () -> Unit, viewModel: BoxBreathingViewMo
     val phase by viewModel.phase.collectAsState()
     val timeLeft by viewModel.timeLeft.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
-    val infiniteTransition = rememberInfiniteTransition(label = "breath")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 0.7f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "breath"
+    val targetScale = if (isRunning) 1.2f else 0.7f
+    val scale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = tween(durationMillis = 4000, easing = LinearEasing),
+        label = "breath"
     )
 
     Scaffold(
@@ -48,81 +46,85 @@ fun BoxBreathingExerciseScreen(onBack: () -> Unit, viewModel: BoxBreathingViewMo
         },
         containerColor = Color(0xFFF8F9FA)
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                "Box Breathing",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF6C63FF)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Breathe in for 4s, hold for 4s, out for 4s, hold for 4s. Repeat.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFF444444),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Box Breathing",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF6C63FF)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Breathe in for 4s, hold for 4s, out for 4s, hold for 4s. Repeat.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFF444444),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(32.dp))
                 Box(
-                    modifier = Modifier
-                        .size((180 * scale).dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFB3E5FC).copy(alpha = 0.5f)),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = phase,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0288D1)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size((180 * scale).coerceAtMost(220f).dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFB3E5FC).copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = phase,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0288D1)
+                        )
+                    }
                 }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Time left: $timeLeft s",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color(0xFF666666)
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Button(
-                    onClick = { viewModel.toggleBreathing() },
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF))
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Time left: $timeLeft s",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFF666666)
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Text(if (isRunning) "Pause" else "Start", color = Color.White)
+                    Button(
+                        onClick = { viewModel.toggleBreathing() },
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF))
+                    ) {
+                        Text(if (isRunning) "Pause" else "Start", color = Color.White)
+                    }
                 }
+                Spacer(modifier = Modifier.height(16.dp))
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("How to do Box Breathing:", fontWeight = FontWeight.Bold, color = Color(0xFF6C63FF))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("1. Inhale slowly through your nose for 4 seconds.")
-                    Text("2. Hold your breath for 4 seconds.")
-                    Text("3. Exhale slowly through your mouth for 4 seconds.")
-                    Text("4. Hold your breath for 4 seconds.")
-                    Text("5. Repeat the cycle for a few minutes.")
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("How to do Box Breathing:", fontWeight = FontWeight.Bold, color = Color(0xFF6C63FF))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("1. Inhale slowly through your nose for 4 seconds.")
+                        Text("2. Hold your breath for 4 seconds.")
+                        Text("3. Exhale slowly through your mouth for 4 seconds.")
+                        Text("4. Hold your breath for 4 seconds.")
+                        Text("5. Repeat the cycle for a few minutes.")
+                    }
                 }
             }
         }
