@@ -409,7 +409,7 @@ private fun SuggestionsSection(
             }
 
             // Show chatbot button for low PHI scores
-            if (phiScore < 6.0) {
+            if (phiScore <= 10.0) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = onChatbotClick,
