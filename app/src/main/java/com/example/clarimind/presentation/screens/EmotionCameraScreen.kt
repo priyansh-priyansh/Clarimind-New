@@ -42,6 +42,12 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import java.nio.ByteBuffer
+import com.example.clarimind.data.HappinessHistoryEntity
+import com.example.clarimind.data.UsageDatabase
+import com.example.clarimind.data.FirebaseSyncHelper
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModelScope
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -62,6 +68,26 @@ fun EmotionCameraScreen(
 
     val previewView = remember { PreviewView(context) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+
+    // Save to DB when emotion is detected
+    LaunchedEffect(detectedEmotion) {
+        if (detectedEmotion != null) {
+            val db = UsageDatabase.getInstance(context)
+            val userId = FirebaseSyncHelper.getCurrentUserId()
+            val now = System.currentTimeMillis()
+            val entity = HappinessHistoryEntity(
+                userId = userId,
+                mood = detectedEmotion!!,
+                rememberedWellBeing = 0.0,
+                experiencedWellBeing = 0.0,
+                combinedPHI = 0.0,
+                timestamp = now
+            )
+            viewModelScope.launch {
+                db.happinessHistoryDao().insert(entity)
+            }
+        }
+    }
 
     LaunchedEffect(cameraPermissionState.status.isGranted) {
         if (cameraPermissionState.status.isGranted) {

@@ -36,3 +36,6 @@ object FourSevenEightBreathingScreen
 
 @Serializable
 object AlternateNostrilBreathingScreen
+
+@Serializable
+object HappinessHistoryScreen

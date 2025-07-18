@@ -31,6 +31,8 @@ import com.example.clarimind.presentation.screens.AlternateNostrilBreathingExerc
 import com.example.clarimind.presentation.screens.BoxBreathingExerciseScreen
 import com.example.clarimind.presentation.screens.BreathingExerciseType
 import com.example.clarimind.presentation.screens.FourSevenEightBreathingExerciseScreen
+import com.example.clarimind.presentation.screens.HappinessHistoryScreen
+import com.example.clarimind.presentation.navigation.HappinessHistoryScreen as HappinessHistoryScreenRoute
 
 @SuppressLint("ContextCastToActivity")
 @Composable
@@ -166,6 +168,9 @@ fun NavGraph() {
                               BreathingExerciseType.FOUR_SEVEN_EIGHT -> navController.navigate(FourSevenEightBreathingScreen)
                               BreathingExerciseType.ALTERNATE_NOSTRIL -> navController.navigate(AlternateNostrilBreathingScreen)
                          }
+                    },
+                    onViewHistory = {
+                         navController.navigate(HappinessHistoryScreenRoute)
                     }
                )
           }
@@ -203,6 +208,9 @@ fun NavGraph() {
           }
           composable<AlternateNostrilBreathingScreen> {
                AlternateNostrilBreathingExerciseScreen(onBack = { navController.popBackStack() })
+          }
+          composable<HappinessHistoryScreenRoute> {
+               HappinessHistoryScreen(onBack = { navController.popBackStack() })
           }
      }
 }

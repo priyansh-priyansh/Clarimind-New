@@ -21,6 +21,12 @@ import com.example.clarimind.presentation.model.PHIScore
 import com.example.clarimind.presentation.model.SectionAQuestion
 import com.example.clarimind.presentation.model.SectionBQuestion
 import com.example.clarimind.presentation.viewmodels.QuestionnaireViewModel
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModelScope
+import kotlinx.coroutines.launch
+import com.example.clarimind.data.HappinessHistoryEntity
+import com.example.clarimind.data.UsageDatabase
+import com.example.clarimind.data.FirebaseSyncHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,11 +38,33 @@ fun QuestionnaireScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
 
     // Auto-scroll to top when section changes
     LaunchedEffect(uiState.currentSection) {
         if (uiState.currentSection == 1) {
             scrollState.animateScrollTo(0)
+        }
+    }
+
+    // Save to DB when results are calculated
+    LaunchedEffect(uiState.isCompleted) {
+        if (uiState.isCompleted && uiState.phiScore != null) {
+            val db = UsageDatabase.getInstance(context)
+            val userId = FirebaseSyncHelper.getCurrentUserId()
+            val now = System.currentTimeMillis()
+            val entity = HappinessHistoryEntity(
+                userId = userId,
+                mood = mood,
+                rememberedWellBeing = uiState.phiScore!!.rememberedWellBeing,
+                experiencedWellBeing = uiState.phiScore!!.experiencedWellBeing,
+                combinedPHI = uiState.phiScore!!.combinedPHI,
+                timestamp = now
+            )
+            // Save in background
+            androidx.lifecycle.viewmodel.compose.viewModelScope.launch {
+                db.happinessHistoryDao().insert(entity)
+            }
         }
     }
 

@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import androidx.compose.foundation.clickable
+import androidx.navigation.NavController
 
 @Composable
 fun DashBoardScreen(
@@ -49,7 +50,8 @@ fun DashBoardScreen(
     onChatbotClick: () -> Unit,
     onViewScreenTime: () -> Unit = {},
     onLogout: () -> Unit = {}, // Add logout callback
-    onBreathingExerciseSelected: (BreathingExerciseType) -> Unit = {} // New callback
+    onBreathingExerciseSelected: (BreathingExerciseType) -> Unit = {}, // New callback
+    onViewHistory: () -> Unit = {} // Add callback for history
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showBreathingSheet by remember { mutableStateOf(false) }
@@ -68,6 +70,7 @@ fun DashBoardScreen(
             onChatbotClick = onChatbotClick,
             onViewScreenTime = onViewScreenTime,
             onLogout = onLogout,
+            onViewHistory = onViewHistory,
             paddingValues = PaddingValues(0.dp)
         )
         // Breathing Exercises Button
@@ -111,6 +114,7 @@ private fun DashboardContent(
     onChatbotClick: () -> Unit,
     onViewScreenTime: () -> Unit,
     onLogout: () -> Unit,
+    onViewHistory: () -> Unit,
     paddingValues: PaddingValues
 ) {
     LazyColumn(
@@ -147,7 +151,8 @@ private fun DashboardContent(
         item {
             ActionButtonsSection(
                 onRetakeAssessment = onRetakeAssessment,
-                onViewScreenTime = onViewScreenTime
+                onViewScreenTime = onViewScreenTime,
+                onViewHistory = onViewHistory
             )
         }
         // Add extra space at the end so the last button is not covered by the floating button
@@ -461,7 +466,8 @@ private fun SuggestionItem(suggestion: String) {
 @Composable
 private fun ActionButtonsSection(
     onRetakeAssessment: () -> Unit,
-    onViewScreenTime: () -> Unit
+    onViewScreenTime: () -> Unit,
+    onViewHistory: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -505,6 +511,28 @@ private fun ActionButtonsSection(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "View Screen Time",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        // View Happiness & Mood History Button
+        Button(
+            onClick = onViewHistory,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF6C63FF)
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.History,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "View Happiness & Mood History",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium
             )
