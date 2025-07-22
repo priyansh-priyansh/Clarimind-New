@@ -1,5 +1,6 @@
 package com.example.clarimind.presentation.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 
@@ -686,8 +687,8 @@ fun HappinessLineChart(history: List<HappinessHistoryEntity>) {
             points.forEachIndexed { i, (_, score) ->
                 val x = i * w / (n - 1).coerceAtLeast(1)
                 val y = h - ((score - minScore) / (maxScore - minScore).coerceAtLeast(1e-3)) * h
-                if (i == 0) path.moveTo(x, y)
-                else path.lineTo(x, y)
+                if (i == 0) path.moveTo(x, y.toFloat())
+                else path.lineTo(x, y.toFloat())
             }
             drawPath(
                 path = path,
@@ -701,7 +702,7 @@ fun HappinessLineChart(history: List<HappinessHistoryEntity>) {
                 drawCircle(
                     color = ComposeColor(0xFF6C63FF),
                     radius = 8f,
-                    center = Offset(x, y)
+                    center = androidx.compose.ui.geometry.Offset(x, y.toFloat())
                 )
             }
         }
